@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BrainCircuit, Check, ChevronDown, Loader2 } from "lucide-react";
+import { BrainCircuit, ChevronDown, Loader2 } from "lucide-react";
 import Markdown from "react-markdown";
-import { Skeleton } from "./ui/skeleton";
 export function ReasoningPanel({
   text = "",
   active = false,
@@ -21,45 +20,35 @@ export function ReasoningPanel({
     return () => clearInterval(timer);
   }, [active]);
   return (
-    <details
-      open={active || undefined}
-      className="group rounded-xl border bg-card/60"
-    >
-      <summary className="flex list-none items-center gap-2.5 px-4 py-3 text-xs">
-        <span className="flex size-7 items-center justify-center rounded-lg border bg-background">
-          <BrainCircuit className="size-4" />
-        </span>
-        <span className="font-medium">{active ? "Thinking" : "Reasoning"}</span>
-        {seconds > 0 && (
-          <span className="text-[10px] text-muted-foreground">{seconds}s</span>
+    <details className="group text-muted-foreground">
+      <summary className="flex w-fit list-none items-center gap-2 rounded-md py-1 text-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        {active ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <BrainCircuit className="size-3.5" />
         )}
-        <span className="ml-auto flex items-center gap-2 text-muted-foreground">
-          {active ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Check className="size-3.5" />
-          )}
-          <ChevronDown className="size-3 transition-transform group-open:rotate-180" />
+        <span>
+          {active
+            ? seconds > 0
+              ? `Thinking for ${seconds}s…`
+              : "Thinking…"
+            : seconds > 0
+              ? `Thought for ${seconds}s`
+              : "Reasoning"}
         </span>
+        <ChevronDown className="size-3 transition-transform group-open:rotate-180" />
       </summary>
-      <div className="border-t px-4 py-3">
+      <div className="mt-2 ml-1.5 max-h-56 overflow-y-auto border-l pl-4 text-xs leading-6">
         {text ? (
-          <div className="markdown text-muted-foreground [&_p]:text-xs [&_p]:leading-6">
+          <div className="pb-1 [&_p]:my-2 [&_strong]:font-medium [&_h1]:text-xs [&_h2]:text-xs [&_h3]:text-xs [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:underline">
             <Markdown>{text}</Markdown>
           </div>
         ) : (
-          <div
-            role="status"
-            aria-label="Waiting for model reasoning"
-            className="space-y-2.5 py-1"
-          >
-            <p className="mb-3 text-[11px] text-muted-foreground">
-              Waiting for the model’s reasoning summary…
-            </p>
-            <Skeleton className="h-2 w-4/5" />
-            <Skeleton className="h-2 w-full" />
-            <Skeleton className="h-2 w-3/5" />
-          </div>
+          <p role="status" className="py-1">
+            {active
+              ? "Reasoning will appear here as it streams."
+              : "No reasoning summary was returned."}
+          </p>
         )}
       </div>
     </details>
