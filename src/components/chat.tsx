@@ -81,7 +81,7 @@ const suggestions = [
   [
     Bolt,
     "Work through the details",
-    "Use the calculator: what is 18 multiplied by 24?",
+    "What is 18 multiplied by 24?",
   ],
 ] as const;
 function ChatLinkLabel({ title }: { title: string }) {
