@@ -1,4 +1,6 @@
-type Run = { status: Promise<string>; cancel: () => Promise<void> };
+import { SessionNotActiveError } from "eve/sessions";
+
+type Session = { end: (options: { reason: string }) => Promise<unknown> };
 function missingRun(error: unknown): boolean {
   const seen = new Set<unknown>();
   while (error && typeof error === "object" && !seen.has(error)) {
@@ -25,18 +27,19 @@ function missingRun(error: unknown): boolean {
   }
   return false;
 }
-export async function cancelOwnedRuns(
+export async function endOwnedSessions(
   ids: readonly string[],
-  getRun: (id: string) => Run,
+  attachSession: (id: string) => Session,
 ) {
   for (let offset = 0; offset < ids.length; offset += 8)
     await Promise.all(
       ids.slice(offset, offset + 8).map(async (id) => {
-        const run = getRun(id);
         try {
-          const status = await run.status;
-          if (status === "pending" || status === "running") await run.cancel();
+          // Eve routes end() to the current owner and waits for its hooks to
+          // release, including when a redeployment moved it to a successor run.
+          await attachSession(id).end({ reason: "Account deletion" });
         } catch (error) {
+          if (SessionNotActiveError.is(error) && !error.retryable) return;
           if (!missingRun(error)) throw error;
         }
       }),

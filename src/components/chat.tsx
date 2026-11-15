@@ -116,12 +116,33 @@ function RouteObserver({ onChange }: { onChange: (path: string) => void }) {
   return null;
 }
 export function ChatApp({ children }: { children: React.ReactNode }) {
+  const { data: session, isPending } = authClient.useSession();
+  return (
+    <AccountWorkspace
+      key={session?.user.id ?? "guest"}
+      session={session}
+      isPending={isPending}
+    >
+      {children}
+    </AccountWorkspace>
+  );
+}
+// Remount account-scoped state and streams on logout or account switches.
+// Responses still in flight belong to the old instance and cannot populate the new one.
+function AccountWorkspace({
+  children,
+  session,
+  isPending,
+}: {
+  children: React.ReactNode;
+  session: typeof authClient.$Infer.Session | null;
+  isPending: boolean;
+}) {
   const [pathname, setPathname] = useState("/");
   const router = useRouter();
   const [cache] = useState(
     () => new Map<string, Pick<UseEveAgentSnapshot, "events" | "session">>(),
   );
-  const { data: session, isPending } = authClient.useSession();
   const [chats, setChats] = useState<Chat[]>([]);
   const [quota, setQuota] = useState<Quota | null>(null);
   const [active, setActive] = useState<string | undefined>();

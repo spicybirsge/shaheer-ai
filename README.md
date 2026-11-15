@@ -27,7 +27,7 @@ Open `http://localhost:3000`. `withEve` starts the agent alongside Next.js. The 
 - AI Gateway → Gemini 2.5 Flash Lite. Maximum 2,048 output tokens per call, four model calls per turn, and session usage limits. Configure a Gateway spending budget separately to cap total spending across accounts.
 - Calculator tool with actual input/results, streamed Markdown, model-provided reasoning when available, thinking status, stop/copy controls, saved history and daily allowance display. Reasoning availability depends on the provider; transcripts are never fabricated.
 - Eve optional default tools are disabled. An in-memory JustBash sandbox avoids paid sandbox VMs; no shell or file tools are exposed.
-- Postgres stores chats, owners, titles, authoritative events and usage counters. Eve owns live Workflow sessions and their reconnect streams. Local Workflow data lives under `.eve`; Vercel uses hosted durable Workflow storage.
+- Postgres stores chats, owners, titles, authoritative events and usage counters. Eve owns live Workflow sessions and their reconnect streams. If Workflow history expires, the stream falls back to saved Postgres events after checking ownership and deletion status. Local Workflow data lives under `.eve`; Vercel uses hosted durable Workflow storage.
 - Delete hides a chat and denies subsequent access through a tombstone. Events and Workflow records remain retained; this is not permanent data erasure.
 
 ## Interface and account controls
@@ -36,7 +36,7 @@ The shared workspace layout keeps navigation mounted between `/` and `/chat/[id]
 
 shadcn/ui supplies the interface components. Light, dark, and system themes are saved on the current device. Google profile picture URLs are stored by Better Auth and shown in the account menu; user messages use right-aligned bubbles.
 
-`/settings` offers account deletion after confirmation and Better Auth's fresh-session check. Deletion cancels active owned Workflow runs before Better Auth deletes the account. Foreign keys cascade removal through sessions, connected accounts, chats, events, and daily usage; account/email verification records are also removed. New Workflow runs use zero content retention at termination, and local/Agent Runs trace exporters are disabled. Legacy runs, provider logs, backups, and runtime metadata may have separate retention periods. `/terms` and `/privacy` use contact@shaheerahamed.com as the support and data-request address.
+`/settings` offers account deletion after confirmation and Better Auth's fresh-session check. Deletion ends owned Eve sessions and waits for their current owners to release them, including after a Workflow handoff, before Better Auth deletes the account. Foreign keys cascade removal through sessions, connected accounts, chats, events, and daily usage; account/email verification records are also removed. New Workflow runs use zero content retention at termination, and local/Agent Runs trace exporters are disabled. Legacy runs, provider logs, backups, and runtime metadata may have separate retention periods. `/terms` and `/privacy` use contact@shaheerahamed.com as the support and data-request address.
 
 `/about` contains the model showcase and Chart.js visualizations. The display figures belong to the requested model persona and are not measurements of the underlying provider.
 
