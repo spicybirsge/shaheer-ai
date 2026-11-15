@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BrainCircuit, ChevronDown, Loader2 } from "lucide-react";
+import { BrainCircuit, ChevronRight, Loader2 } from "lucide-react";
 import Markdown from "react-markdown";
 export function ReasoningPanel({
   text = "",
@@ -20,7 +20,7 @@ export function ReasoningPanel({
     return () => clearInterval(timer);
   }, [active]);
   return (
-    <details className="group text-muted-foreground">
+    <details className="group/reasoning text-muted-foreground">
       <summary className="flex w-fit list-none items-center gap-2 rounded-md py-1 text-xs transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
         {active ? (
           <Loader2 className="size-3.5 animate-spin" />
@@ -36,7 +36,7 @@ export function ReasoningPanel({
               ? `Thought for ${seconds}s`
               : "Reasoning"}
         </span>
-        <ChevronDown className="size-3 transition-transform group-open:rotate-180" />
+        <ChevronRight className="size-3 transition-transform group-open/reasoning:rotate-90" />
       </summary>
       <div className="mt-2 ml-1.5 max-h-56 overflow-y-auto border-l pl-4 text-xs leading-6">
         {text ? (
