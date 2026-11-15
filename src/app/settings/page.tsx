@@ -1,6 +1,6 @@
 import { SiteFrame } from "@/components/site-frame";
 import { AccountSettings } from "@/components/account-settings";
-export const metadata = { title: "Account settings — Shaheer" };
+export const metadata = { title: "Account settings — Shaheer Ai" };
 export default function Settings() {
   return (
     <SiteFrame>

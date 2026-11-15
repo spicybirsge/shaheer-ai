@@ -11,7 +11,7 @@ export default defineAgent({
       specificationVersion: "v4",
       transformParams: async ({ params }) => ({
         ...params,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       }),
     },
   }),

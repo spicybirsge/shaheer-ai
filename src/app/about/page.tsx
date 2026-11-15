@@ -10,7 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-export const metadata = { title: "Meet Shaheer 1.0 Flash — Shaheer Labs" };
+export const metadata = { title: "About — Shaheer Ai" };
 export default function About() {
   return (
     <SiteFrame>

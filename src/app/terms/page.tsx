@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SiteFrame } from "@/components/site-frame";
-export const metadata = { title: "Terms of service — Shaheer" };
+export const metadata = { title: "Terms of service — Shaheer Ai" };
 export default function Terms() {
   return (
     <SiteFrame>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SiteFrame } from "@/components/site-frame";
-export const metadata = { title: "Privacy policy — Shaheer" };
+export const metadata = { title: "Privacy policy — Shaheer Ai" };
 export default function Privacy() {
   return (
     <SiteFrame>

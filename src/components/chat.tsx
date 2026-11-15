@@ -33,8 +33,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -59,6 +57,8 @@ import {
 import { Brand } from "./brand";
 import { ChatSkeleton } from "./chat-skeleton";
 import { ReasoningPanel } from "./reasoning-panel";
+import { SignInDialog } from "./sign-in-dialog";
+import { ChatMarkdown } from "./chat-markdown";
 type Chat = { id: string; title: string };
 type Quota = { remaining: number; limit: number; resetsAt: string };
 const suggestions = [
@@ -98,6 +98,7 @@ function ChatLinkLabel({ title }: { title: string }) {
 }
 type Workspace = {
   signedIn: boolean;
+  openSignIn: () => void;
   quota: Quota | null;
   refresh: () => Promise<void>;
   version: number;
@@ -129,6 +130,7 @@ export function ChatApp({ children }: { children: React.ReactNode }) {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(true);
   const [error, setError] = useState("");
   const refresh = useCallback(async () => {
     try {
@@ -311,7 +313,7 @@ export function ChatApp({ children }: { children: React.ReactNode }) {
               {signingOut ? <Loader2 className="animate-spin" /> : <Ellipsis />}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem asChild>
               <Link href="/settings">
                 <Settings />
@@ -354,6 +356,7 @@ export function ChatApp({ children }: { children: React.ReactNode }) {
     <WorkspaceContext.Provider
       value={{
         signedIn: !!session,
+        openSignIn: () => setSignInOpen(true),
         quota,
         refresh,
         version,
@@ -408,12 +411,17 @@ export function ChatApp({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {!isPending && !session && (
+                <Button size="sm" onClick={() => setSignInOpen(true)}>
+                  Sign in
+                </Button>
+              )}
               <ThemeToggle />
               <Button
                 asChild
                 size="sm"
                 variant="ghost"
-                className="text-muted-foreground"
+                className="hidden text-muted-foreground sm:inline-flex"
               >
                 <Link href="/about">
                   Meet Shaheer
@@ -447,6 +455,10 @@ export function ChatApp({ children }: { children: React.ReactNode }) {
           )}
         </main>
       </div>
+      <SignInDialog
+        open={!isPending && !session && signInOpen}
+        onOpenChange={setSignInOpen}
+      />
     </WorkspaceContext.Provider>
   );
 }
@@ -464,6 +476,7 @@ export function ChatConversation({ initialId }: { initialId?: string }) {
 function Conversation({
   initialId,
   signedIn,
+  openSignIn,
   quota,
   refresh,
   onSession,
@@ -474,6 +487,7 @@ function Conversation({
   userId: string;
   initialId?: string;
   signedIn: boolean;
+  openSignIn: () => void;
   quota: Quota | null;
   refresh: () => Promise<void>;
   onSession: (id: string) => void;
@@ -481,7 +495,6 @@ function Conversation({
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -523,10 +536,13 @@ function Conversation({
     }
   }, [agent.status, signedIn, refresh]);
   async function send() {
+    if (!signedIn) {
+      openSignIn();
+      return;
+    }
     const text = input.trim();
     if (
       !text ||
-      !signedIn ||
       busy ||
       sendLock.current ||
       quota?.remaining === 0
@@ -546,19 +562,6 @@ function Conversation({
     } finally {
       sendLock.current = false;
       setSubmitting(false);
-    }
-  }
-  async function signIn() {
-    setSigningIn(true);
-    try {
-      const result = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: window.location.pathname,
-      });
-      if (result.error) throw new Error(result.error.message);
-    } catch (e) {
-      setError(String(e));
-      setSigningIn(false);
     }
   }
   const empty = agent.messages.length === 0 && !submitting && !busy;
@@ -676,11 +679,10 @@ function Conversation({
                       {message.parts.map((part, i) => {
                         if (part.type === "text")
                           return (
-                            <div className="markdown" key={part.id ?? i}>
-                              <Markdown remarkPlugins={[remarkGfm]}>
-                                {part.text}
-                              </Markdown>
-                            </div>
+                            <ChatMarkdown
+                              key={part.id ?? i}
+                              content={part.text}
+                            />
                           );
                         if (part.type === "reasoning")
                           return (
@@ -808,23 +810,6 @@ function Conversation({
             Daily limit reached. Your 50 messages reset at midnight UTC.
           </p>
         )}
-        {!signedIn && (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>Your next idea starts here.</span>
-            <Button
-              size="sm"
-              disabled={signingIn}
-              onClick={() => void signIn()}
-            >
-              {signingIn ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <span className="font-bold">G</span>
-              )}
-              Continue with Google
-            </Button>
-          </div>
-        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -891,7 +876,6 @@ function Conversation({
                 size="icon"
                 aria-label="Send message"
                 disabled={
-                  !signedIn ||
                   !input.trim() ||
                   busy ||
                   submitting ||
