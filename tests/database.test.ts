@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { reserveMessage, DAILY_LIMIT } from "../src/lib/quota";
+import { loadOwnedHistory } from "../src/lib/db/history";
 import type { database } from "../src/lib/db";
 test("migration and quota enforce 50 concurrent sends, independent accounts and UTC dates", async () => {
   const pg = new PGlite();
@@ -30,8 +31,14 @@ test("migration and quota enforce 50 concurrent sends, independent accounts and 
       insert into chat_events values ('chat-a',0,0,'{}'),('chat-b',0,0,'{}');
       insert into account (id,account_id,provider_id,user_id,access_token) values ('oauth-a','google-a','google','a','secret'),('oauth-b','google-b','google','b','other');
       insert into session (id,expires_at,token,user_id) values ('session-a',now()+interval '1 day','token-a','a'),('session-b',now()+interval '1 day','token-b','b');
-      delete from "user" where id='a';
     `);
+    const history = await loadOwnedHistory("chat-a", "a", db);
+    assert.equal(history.length, 1);
+    assert.deepEqual(await loadOwnedHistory("chat-a", "b", db), []);
+    assert.deepEqual(await loadOwnedHistory("missing", "a", db), []);
+    await pg.exec("update chats set deleted=true where id='chat-a'");
+    assert.deepEqual(await loadOwnedHistory("chat-a", "a", db), []);
+    await pg.exec(`delete from "user" where id='a'`);
     for (const table of ["chats", "account", "session", "daily_usage"]) {
       const result = await pg.query<{ user_id: string }>(
         `select user_id from ${table}`,

@@ -1,14 +1,13 @@
 import { defineChannel, POST } from "eve/channels";
-import { getRun } from "eve/workflow/api";
 import { eq } from "drizzle-orm";
 import { getAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { chats } from "../../src/lib/db/schema";
-import { cancelOwnedRuns } from "../lib/erasure";
+import { endOwnedSessions } from "../lib/erasure";
 
 export default defineChannel({
   routes: [
-    POST("/eve/v1/account/purge", async (request) => {
+    POST("/eve/v1/account/purge", async (request, { attachSession }) => {
       const session = await getAuth().api.getSession({
         headers: request.headers,
       });
@@ -23,9 +22,9 @@ export default defineChannel({
         .from(chats)
         .where(eq(chats.userId, session.user.id));
       // Run in the agent process, which owns the configured Workflow backend.
-      await cancelOwnedRuns(
+      await endOwnedSessions(
         owned.map((chat) => chat.id),
-        getRun,
+        attachSession,
       );
       return Response.json({ ok: true });
     }),

@@ -4,8 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { getAuth } from "../../src/lib/auth";
 import { database } from "../../src/lib/db";
 import { chats } from "../../src/lib/db/schema";
+import { loadOwnedHistory } from "../../src/lib/db/history";
 import { reserveMessage } from "../../src/lib/quota";
 import { registerCreation } from "../lib/creation";
+import { restoreExpiredHistory } from "../lib/history";
 
 const appSession: AuthFn<Request> = async (request) => {
   const session = await getAuth().api.getSession({ headers: request.headers });
@@ -99,28 +101,48 @@ const channel = eveChannel({
 });
 export default {
   ...channel,
-  routes: channel.routes.map((route) =>
-    route.method === "POST" && route.path === "/eve/v1/session"
-      ? {
-          ...route,
-          async handler(request, args) {
-            const session = await getAuth().api.getSession({
-              headers: request.headers,
-            });
-            if (!session)
-              return Response.json(
-                { error: "Sign in required" },
-                { status: 401 },
-              );
-            const response = await route.handler(request, args);
-            return registerCreation(response, async (id) => {
-              await database()
-                .insert(chats)
-                .values({ id, userId: session.user.id })
-                .onConflictDoNothing();
-            });
-          },
-        }
-      : route,
-  ),
+  routes: channel.routes.map((route) => {
+    if (
+      route.method === "GET" &&
+      route.path === "/eve/v1/session/:sessionId/stream"
+    )
+      return {
+        ...route,
+        async handler(request, args) {
+          const response = await route.handler(request, args);
+          return restoreExpiredHistory(
+            response,
+            request,
+            args.params.sessionId,
+            async () => {
+              const caller = await appSession(request);
+              if (!caller) return [];
+              return loadOwnedHistory(args.params.sessionId, caller.principalId);
+            },
+          );
+        },
+      };
+    if (route.method === "POST" && route.path === "/eve/v1/session")
+      return {
+        ...route,
+        async handler(request, args) {
+          const session = await getAuth().api.getSession({
+            headers: request.headers,
+          });
+          if (!session)
+            return Response.json(
+              { error: "Sign in required" },
+              { status: 401 },
+            );
+          const response = await route.handler(request, args);
+          return registerCreation(response, async (id) => {
+            await database()
+              .insert(chats)
+              .values({ id, userId: session.user.id })
+              .onConflictDoNothing();
+          });
+        },
+      };
+    return route;
+  }),
 } satisfies typeof channel;
