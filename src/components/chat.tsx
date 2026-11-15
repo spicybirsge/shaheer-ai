@@ -767,26 +767,7 @@ function Conversation({
                   </article>
                 ) : (
                   <article key={message.id} className="space-y-3">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={cn(
-                          "flex size-7 items-center justify-center rounded-full bg-muted text-[10px]",
-                          message.role === "assistant" &&
-                            "bg-transparent text-3xl",
-                        )}
-                      >
-                        {message.role === "assistant" ? "✳" : "Y"}
-                      </span>
-                      <span className="text-xs font-medium">
-                        {message.role === "assistant" ? "shaheer" : "You"}
-                      </span>
-                      {message.role === "assistant" && (
-                        <span className="text-[9px] tracking-widest text-muted-foreground">
-                          1.0 FLASH
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-3 sm:pl-9">
+                    <div className="space-y-3">
                       {message.parts.map((part, i) => {
                         if (part.type === "text")
                           return (
