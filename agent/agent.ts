@@ -1,5 +1,6 @@
 import { defineAgent } from "eve";
 import { gateway, wrapLanguageModel } from "ai";
+import { modelMiddleware } from "./lib/model-middleware";
 
 export default defineAgent({
   defaultTools: false,
@@ -7,13 +8,7 @@ export default defineAgent({
   experimental: { workflow: { retention: 0 } },
   model: wrapLanguageModel({
     model: gateway("google/gemini-2.5-flash-lite"),
-    middleware: {
-      specificationVersion: "v4",
-      transformParams: async ({ params }) => ({
-        ...params,
-        maxOutputTokens: 8192,
-      }),
-    },
+    middleware: modelMiddleware,
   }),
   reasoning: "provider-default",
   modelOptions: {
