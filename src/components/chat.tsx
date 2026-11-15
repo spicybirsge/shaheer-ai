@@ -61,6 +61,7 @@ import { SignInDialog } from "./sign-in-dialog";
 import { ChatMarkdown } from "./chat-markdown";
 type Chat = { id: string; title: string };
 type Quota = { remaining: number; limit: number; resetsAt: string };
+type ChatPage = { chats: Chat[]; nextCursor: string | null; quota: Quota };
 const suggestions = [
   [
     Sparkles,
@@ -149,24 +150,81 @@ function AccountWorkspace({
   const [version, setVersion] = useState(0);
   const [mobile, setMobile] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const pagination = useRef({
+    cursor: null as string | null,
+    expanded: false,
+    loading: false,
+    refreshVersion: 0,
+    removed: new Set<string>(),
+  });
   const [deleting, setDeleting] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [signInOpen, setSignInOpen] = useState(true);
   const [error, setError] = useState("");
   const refresh = useCallback(async () => {
+    const version = ++pagination.current.refreshVersion;
     try {
       const response = await fetch("/api/chats");
       if (!response.ok)
         throw new Error("Could not load your history. Please try again.");
-      const data = await response.json();
-      setChats(data.chats);
+      const data: ChatPage = await response.json();
+      if (version !== pagination.current.refreshVersion) return;
+      // Refresh recent titles/quota without discarding older pages already loaded.
+      const recent = data.chats.filter((chat) => !pagination.current.removed.has(chat.id));
+      const recentIds = new Set(recent.map((chat) => chat.id));
+      const keepOlder = pagination.current.expanded;
+      setChats((previous) =>
+        keepOlder
+          ? [...recent, ...previous.filter((chat) => !recentIds.has(chat.id))]
+          : recent,
+      );
+      if (!pagination.current.expanded) {
+        pagination.current.cursor = data.nextCursor;
+        setNextCursor(data.nextCursor);
+      }
       setQuota(data.quota);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load history");
+      if (version === pagination.current.refreshVersion)
+        setError(e instanceof Error ? e.message : "Could not load history");
     } finally {
-      setHistoryLoading(false);
+      if (version === pagination.current.refreshVersion) setHistoryLoading(false);
     }
   }, []);
+  async function loadMore() {
+    const cursor = pagination.current.cursor;
+    if (!cursor || pagination.current.loading || !session) return;
+    pagination.current.loading = true;
+    // Keep the current boundary while this page is in flight, even if a
+    // concurrent refresh inserts a new conversation at the top of the list.
+    pagination.current.expanded = true;
+    setLoadingMore(true);
+    setHistoryError("");
+    try {
+      const response = await fetch(
+        `/api/chats?cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (!response.ok) throw new Error("Could not load more conversations.");
+      const data: ChatPage = await response.json();
+      pagination.current.cursor = data.nextCursor;
+      setNextCursor(data.nextCursor);
+      const removed = pagination.current.removed;
+      setChats((previous) => {
+        const known = new Set(previous.map((chat) => chat.id));
+        return [
+          ...previous,
+          ...data.chats.filter((chat) => !known.has(chat.id) && !removed.has(chat.id)),
+        ];
+      });
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : "Could not load history");
+    } finally {
+      pagination.current.loading = false;
+      setLoadingMore(false);
+    }
+  }
   useEffect(() => {
     if (!session) return;
     const timer = setTimeout(() => void refresh(), 0);
@@ -197,6 +255,8 @@ function AccountWorkspace({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Could not remove conversation");
+      pagination.current.removed.add(id);
+      setChats((previous) => previous.filter((chat) => chat.id !== id));
       if (activeId === id) newChat();
       await refresh();
     } catch (e) {
@@ -230,7 +290,17 @@ function AccountWorkspace({
         <Plus />
         New conversation<span className="ml-auto text-muted-foreground">↗</span>
       </Button>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          if (
+            !historyError &&
+            node.scrollHeight - node.scrollTop - node.clientHeight < 200
+          )
+            void loadMore();
+        }}
+      >
         <div className="mb-3 px-2 text-[10px] font-medium tracking-[.18em] text-muted-foreground">
           CONVERSATIONS
         </div>
@@ -280,6 +350,26 @@ function AccountWorkspace({
             <br />
             Your conversations will live here.
           </p>
+        )}
+        {nextCursor && (
+          <div className="mt-2 px-2">
+            {historyError && (
+              <p role="alert" className="py-2 text-xs text-destructive">
+                {historyError}
+              </p>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs text-muted-foreground"
+              disabled={loadingMore}
+              onClick={() => void loadMore()}
+            >
+              {loadingMore ? (
+                <><Loader2 className="size-3 animate-spin" /> Loading conversations…</>
+              ) : historyError ? "Retry loading" : "Load more conversations"}
+            </Button>
+          </div>
         )}
       </div>
       <div className="rounded-xl border bg-background/40 p-3.5">

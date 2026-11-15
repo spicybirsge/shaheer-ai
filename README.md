@@ -32,7 +32,7 @@ Open `http://localhost:3000`. `withEve` starts the agent alongside Next.js. The 
 
 ## Interface and account controls
 
-The shared workspace layout keeps navigation mounted between `/` and `/chat/[id]`. Chat loading stays in the conversation panel, with up to 12 recent snapshots cached in memory for faster revisits. Stream progress bypasses database persistence; completed content remains saved. The model requests a bounded 512-token thinking budget and thought summaries. A brain panel appears immediately after sending and displays reasoning summaries incrementally when the provider returns them. Providers can omit or buffer summaries; the app does not invent text while waiting.
+The shared workspace layout keeps navigation mounted between `/` and `/chat/[id]`. The sidebar loads 30 conversations at a time and fetches older pages as you scroll down, with a load-more/retry button. Chat loading stays in the conversation panel, with up to 12 recent snapshots cached in memory for faster revisits. Stream progress bypasses database persistence; completed content remains saved. The model requests a bounded 512-token thinking budget and thought summaries. A brain panel appears immediately after sending and displays reasoning summaries incrementally when the provider returns them. Providers can omit or buffer summaries; the app does not invent text while waiting.
 
 shadcn/ui supplies the interface components. Light, dark, and system themes are saved on the current device. Google profile picture URLs are stored by Better Auth and shown in the account menu; user messages use right-aligned bubbles.
 
